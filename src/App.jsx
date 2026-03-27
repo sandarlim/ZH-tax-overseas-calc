@@ -302,13 +302,12 @@ export default function App() {
               <Row label="Taxable wealth (without property)" val={fmt(Math.max(0, swissWealth - exemption))} indent />
               <Row label="Taxable wealth (with property)" val={fmt(Math.max(0, totalWealth - exemption))} indent />
               <tr><td colSpan={2} className="pt-3 pb-1 px-1 text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                Wealth Tax (Canton ×{CANTONAL_MULTIPLIER} + Municipal Steuerfuss {Math.round(sf*100)}%)
+                Wealth Tax (Canton ×${cm} + Municipal Steuerfuss ${Math.round(sf*100)}%)
               </td></tr>
               <Row label="Wealth tax without property" val={fmt(wTaxWo)} indent />
               <Row label="Wealth tax with property" val={fmt(wTaxW)} indent />
               <Row label="Wealth tax impact" val={fmt(dWealth)} highlight />
               <tr><td colSpan={2} className="px-1 py-2 text-xs text-gray-400">
-                Bands: 0‰ to CHF 77k · 0.5‰ to 308k · 1‰ to 3.158m · 3‰ above
               </td></tr>
             </tbody>
           </table>
