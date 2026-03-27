@@ -1,28 +1,9 @@
-
 import { useState } from "react";
+import { FED_MARRIED, FED_SINGLE } from "./data/federalTax";
+import { ZH_MARRIED, ZH_SINGLE, WEALTH_BANDS, WEALTH_EXEMPT, CANTONAL_MULTIPLIER } from "./data/cantonalTax";
+import { GEMEINDEN } from "./data/gemeindeTax";
 
-// ─── BRACKETS ────────────────────────────────────────────────────────────────
-const FED_MARRIED = [
-  [28300,0],[50900,.01],[58400,.02],[75300,.03],[90300,.04],
-  [103400,.05],[114700,.06],[124200,.07],[131700,.08],[137300,.09],
-  [141200,.10],[143100,.105],[145000,.11],[Infinity,.115],
-];
-const FED_SINGLE = [
-  [14500,0],[31600,.0077],[41400,.0088],[55200,.022],[72500,.0264],
-  [78100,.0297],[103600,.0561],[134600,.088],[176000,.11],
-  [755200,.132],[Infinity,.115],
-];
-const ZH_MARRIED = [
-  [13100,0],[23100,.02],[31800,.03],[41600,.04],[53800,.05],
-  [68200,.06],[84100,.07],[101500,.08],[120400,.09],[141000,.10],
-  [164100,.11],[189700,.12],[Infinity,.13],
-];
-const ZH_SINGLE = [
-  [6600,0],[11500,.02],[16100,.03],[24300,.04],[33000,.05],
-  [43400,.06],[56100,.07],[70200,.08],[85700,.09],[103100,.10],
-  [122700,.11],[144300,.12],[Infinity,.13],
-];
-
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
 function bracket(income, table) {
   let tax = 0, prev = 0;
   for (const [upto, rate] of table) {
@@ -40,10 +21,6 @@ function zhBasic(income, married) {
   return bracket(income, married ? ZH_MARRIED : ZH_SINGLE);
 }
 
-// Wealth tax bands (per mille) — ZH basic, then ×0.95×(1+sf)
-const WEALTH_BANDS = [[77000,0],[308000,.5],[3158000,1],[Infinity,3]];
-const WEALTH_EXEMPT = { married: 159000, single: 77000 };
-
 function wealthBasic(netWealth, married) {
   const taxable = Math.max(0, netWealth - WEALTH_EXEMPT[married ? "married" : "single"]);
   let tax = 0, prev = 0;
@@ -55,18 +32,6 @@ function wealthBasic(netWealth, married) {
   return tax;
 }
 
-// ─── GEMEINDEN ───────────────────────────────────────────────────────────────
-const GEMEINDEN = [
-    ["Stadt Zürich", 1.19], ["Winterthur", 1.22], ["Uster", 1.08],
-    ["Dübendorf", 1.09], ["Dietikon", 1.17], ["Kloten", 1.17],
-    ["Regensdorf", 1.02], ["Horgen", 0.97], ["Thalwil", 0.87],
-    ["Küsnacht", 0.77], ["Zollikon", 0.83], ["Männedorf", 0.91],
-    ["Opfikon", 1.22], ["Schlieren", 1.18], ["Adliswil", 1.04],
-    ["Kilchberg", 0.72], ["Rüschlikon", 0.74], ["Herrliberg", 0.78],
-    ["Maur", 0.95], ["Bonstetten", 0.91], ["Wettswil am Albis", 0.91],
-    ["Affoltern am Albis", 1.24], ["Custom...", null],
-  ];
-
 const fmt = n => "CHF " + Math.round(n).toLocaleString("de-CH");
 const pct = n => (n * 100).toFixed(3) + "%";
 
@@ -76,7 +41,7 @@ export default function App() {
   const [propValue, setPropValue] = useState(200000);
   const [mortgage, setMortgage] = useState(0);
   const [imputedRate, setImputedRate] = useState(3.5);
-  const [rentalMode, setRentalMode] = useState("imputed"); // "imputed" | "actual"
+  const [rentalMode, setRentalMode] = useState("imputed");
   const [actualRental, setActualRental] = useState(0);
   const [swissWealth, setSwissWealth] = useState(0);
   const [gemIdx, setGemIdx] = useState(0);
@@ -88,11 +53,10 @@ export default function App() {
   const propNet = Math.max(0, propValue - mortgage);
   const totalWealth = swissWealth + propNet;
 
-  // Effective rate method: compute rate on rateInc, apply to swissInc
   function allTax(swissInc, rateInc) {
     const fRate = rateInc > 0 ? fedTax(rateInc, married) / rateInc : 0;
-    const cRate = rateInc > 0 ? zhBasic(rateInc, married) * 0.95 / rateInc : 0;
-    const mRate = rateInc > 0 ? zhBasic(rateInc, married) * 0.95 * sf / rateInc : 0;
+    const cRate = rateInc > 0 ? zhBasic(rateInc, married) * CANTONAL_MULTIPLIER / rateInc : 0;
+    const mRate = rateInc > 0 ? zhBasic(rateInc, married) * CANTONAL_MULTIPLIER * sf / rateInc : 0;
     return {
       fed: swissInc * fRate, fRate,
       can: swissInc * cRate, cRate,
@@ -100,7 +64,7 @@ export default function App() {
     };
   }
 
-  const tW = allTax(swissIncome, swissIncome + imputed);
+  const tW  = allTax(swissIncome, swissIncome + imputed);
   const tWo = allTax(swissIncome, swissIncome);
 
   const dFed = tW.fed - tWo.fed;
@@ -108,10 +72,10 @@ export default function App() {
   const dMun = tW.mun - tWo.mun;
   const dInc = dFed + dCan + dMun;
 
-  const wTaxWo = wealthBasic(swissWealth, married) * 0.95 * (1 + sf);
-  const wTaxW  = wealthBasic(totalWealth,  married) * 0.95 * (1 + sf);
+  const wTaxWo = wealthBasic(swissWealth, married) * CANTONAL_MULTIPLIER * (1 + sf);
+  const wTaxW  = wealthBasic(totalWealth,  married) * CANTONAL_MULTIPLIER * (1 + sf);
   const dWealth = wTaxW - wTaxWo;
-  const dTotal = dInc + dWealth;
+  const dTotal  = dInc + dWealth;
 
   const exemption = WEALTH_EXEMPT[married ? "married" : "single"];
 
@@ -273,7 +237,9 @@ export default function App() {
           <table className="w-full">
             <tbody>
               <Row label="Swiss taxable income" val={fmt(swissIncome)} bold />
-              <Row label={rentalMode === "imputed" ? "+ Overseas imputed rental income" : "+ Overseas actual rental income"} val={fmt(imputed)} indent sub={rentalMode === "imputed" ? `(${imputedRate}% × ${fmt(propValue)})` : "(rate-determining only, not taxed in CH)"} />
+              <Row label={rentalMode === "imputed" ? "+ Overseas imputed rental income" : "+ Overseas actual rental income"}
+                val={fmt(imputed)} indent
+                sub={rentalMode === "imputed" ? `(${imputedRate}% × ${fmt(propValue)})` : "(rate-determining only, not taxed in CH)"} />
               <Row label="= Rate-determining income" val={fmt(swissIncome + imputed)} bold />
               {[
                 ["Federal Tax", tWo.fRate, tW.fRate, dFed],
@@ -307,7 +273,7 @@ export default function App() {
               <Row label="Taxable wealth (without property)" val={fmt(Math.max(0, swissWealth - exemption))} indent />
               <Row label="Taxable wealth (with property)" val={fmt(Math.max(0, totalWealth - exemption))} indent />
               <tr><td colSpan={2} className="pt-3 pb-1 px-1 text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                Wealth Tax (Canton ×0.95 + Municipal Steuerfuss {Math.round(sf*100)}%)
+                Wealth Tax (Canton ×{CANTONAL_MULTIPLIER} + Municipal Steuerfuss {Math.round(sf*100)}%)
               </td></tr>
               <Row label="Wealth tax without property" val={fmt(wTaxWo)} indent />
               <Row label="Wealth tax with property" val={fmt(wTaxW)} indent />
@@ -320,12 +286,12 @@ export default function App() {
         </div>
       )}
 
-<div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+      <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Disclaimer</p>
         <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier). Excludes church tax.</p>
         <p className="text-xs text-gray-500">This calculator is an <strong>approximation for illustrative purposes only</strong>. Figures may not be fully up to date. For accurate calculations, consult a qualified Swiss tax advisor.</p>
-        <p className="text-xs text-gray-500">⚠️ <strong>Note on Eigenmietwert:</strong> The imputed rental value system is expected to be abolished in Switzerland in the coming years. This will affect the income progression calculation.</p>
-        <p className="text-xs text-gray-500">Found an error? <a href="https://github.com/sandarlim/ZH-tax-overseas-calc/issues" className="text-blue-500 underline" target="_blank">Open an issue on GitHub</a> or update the app yourself.</p>
+        <p className="text-xs text-gray-500">⚠️ <strong>Note on Eigenmietwert:</strong> The imputed rental value system will be abolished in Switzerland in the coming years. This will affect the income progression calculation.</p>
+        <p className="text-xs text-gray-500">Found an error? <a href="https://github.com/sandarlim/ZH-tax-overseas-calc/issues/new" className="text-blue-500 underline" target="_blank">Open an issue on GitHub</a> or fork the project to update.</p>
       </div>
     </div>
   );
