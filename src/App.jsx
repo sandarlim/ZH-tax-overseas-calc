@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FEDERAL_TAX } from "./data/federalTax";
-import { ZH_INCOME, ZH_WEALTH, CANTONAL_MULTIPLIER } from "./data/cantonalTax";
+import { getIncome, getWealth, CANTONAL_MULTIPLIER } from "./data/cantonalTax";
 import { STEUERFUSS, TAX_YEARS } from "./data/gemeindeTax";
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -28,13 +28,13 @@ function fedTax(income, married, year) {
   return tax;
 }
 
-function zhBasic(income, married) {
-  // ZH_INCOME rates are percentages
-  return bracket(income, married ? ZH_INCOME.married : ZH_INCOME.single);
+function zhBasic(income, married, year) {
+  const tbl = getIncome(year);
+  return bracket(income, married ? tbl.married : tbl.single);
 }
 
-function wealthBasic(netWealth, married) {
-  const cfg = ZH_WEALTH[married ? "married" : "single"];
+function wealthBasic(netWealth, married, year) {
+  const cfg = getWealth(year)[married ? "married" : "single"];
   const taxable = Math.max(0, netWealth - cfg.exemption);
   let tax = 0, prev = 0;
   for (const [upto, pm] of cfg.bands) {
@@ -49,7 +49,7 @@ const fmt = n => "CHF " + Math.round(n).toLocaleString("de-CH");
 const pct = n => (n * 100).toFixed(3) + "%";
 
 export default function App() {
-  const [taxYear, setTaxYear] = useState(2026);
+  const [taxYear, setTaxYear] = useState(2025);
   const [married, setMarried] = useState(true);
   const [swissIncome, setSwissIncome] = useState(100000);
   const [propValue, setPropValue] = useState(200000);
@@ -72,8 +72,8 @@ export default function App() {
 
   function allTax(swissInc, rateInc) {
     const fRate = rateInc > 0 ? fedTax(rateInc, married, taxYear) / rateInc : 0;
-    const cRate = rateInc > 0 ? zhBasic(rateInc, married) * cm / rateInc : 0;
-    const mRate = rateInc > 0 ? zhBasic(rateInc, married) * cm * sf / rateInc : 0;
+    const cRate = rateInc > 0 ? zhBasic(rateInc, married, taxYear) * cm / rateInc : 0;
+    const mRate = rateInc > 0 ? zhBasic(rateInc, married, taxYear) * cm * sf / rateInc : 0;
     return {
       fed: swissInc * fRate, fRate,
       can: swissInc * cRate, cRate,
@@ -94,7 +94,7 @@ export default function App() {
   const dWealth = wTaxW - wTaxWo;
   const dTotal  = dInc + dWealth;
 
-  const exemption = ZH_WEALTH[married ? "married" : "single"].exemption;
+  const exemption = getWealth(taxYear)[married ? "married" : "single"].exemption;
 
   const Pill = ({ id, children }) => (
     <button onClick={() => setTab(id)}
@@ -115,7 +115,7 @@ export default function App() {
   return (
     <div className="max-w-lg mx-auto p-4 font-sans text-sm bg-white">
       <div className="mb-4">
-        <h1 className="text-base font-bold text-gray-900">Kanton Zurich {taxYear} — Overseas Property Tax Impact</h1>
+        <h1 className="text-base font-bold text-gray-900">Zurich {taxYear} — Overseas Property Tax Impact</h1>
         <p className="text-xs text-gray-500">Federal + Canton Zürich + Municipal. {married ? "Married" : "Single"}, no kids, no church tax.</p>
       </div>
 
@@ -317,7 +317,7 @@ export default function App() {
 
       <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Disclaimer</p>
-        <p className="text-xs text-gray-500">Based on <strong>2025 and 2026 federal tax rates</strong> (DBG Art. 36, sourced from ESTV official circulars) and <strong>Kanton Zürich cantonal tax rates</strong> (sourced from swisstaxcalculator.estv.admin.ch). Cantonal multiplier: 0.98 for 2025, 0.95 for 2026. Excludes church tax.</p>
+        <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier). Excludes church tax.</p>
         <p className="text-xs text-gray-500">This calculator is an <strong>approximation for illustrative purposes only</strong>. Figures may not be fully up to date. For accurate calculations, consult a qualified Swiss tax advisor.</p>
         <p className="text-xs text-gray-500">⚠️ <strong>Note on Eigenmietwert:</strong> The imputed rental value system will be abolished in Switzerland in the coming years. This will affect the income progression calculation.</p>
         <p className="text-xs text-gray-500">Found an error? <a href="https://github.com/sandarlim/ZH-tax-overseas-calc/issues" className="text-blue-500 underline" target="_blank">Open an issue on GitHub</a> or <a href="https://github.com/sandarlim/ZH-tax-overseas-calc/fork" className="text-blue-500 underline" target="_blank">fork the project</a> to update.</p>
