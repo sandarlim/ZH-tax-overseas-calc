@@ -1,0 +1,327 @@
+
+import { useState } from "react";
+
+// ─── BRACKETS ────────────────────────────────────────────────────────────────
+const FED_MARRIED = [
+  [28300,0],[50900,.01],[58400,.02],[75300,.03],[90300,.04],
+  [103400,.05],[114700,.06],[124200,.07],[131700,.08],[137300,.09],
+  [141200,.10],[143100,.105],[145000,.11],[Infinity,.115],
+];
+const FED_SINGLE = [
+  [14500,0],[31600,.0077],[41400,.0088],[55200,.022],[72500,.0264],
+  [78100,.0297],[103600,.0561],[134600,.088],[176000,.11],
+  [755200,.132],[Infinity,.115],
+];
+const ZH_MARRIED = [
+  [13100,0],[23100,.02],[31800,.03],[41600,.04],[53800,.05],
+  [68200,.06],[84100,.07],[101500,.08],[120400,.09],[141000,.10],
+  [164100,.11],[189700,.12],[Infinity,.13],
+];
+const ZH_SINGLE = [
+  [6600,0],[11500,.02],[16100,.03],[24300,.04],[33000,.05],
+  [43400,.06],[56100,.07],[70200,.08],[85700,.09],[103100,.10],
+  [122700,.11],[144300,.12],[Infinity,.13],
+];
+
+function bracket(income, table) {
+  let tax = 0, prev = 0;
+  for (const [upto, rate] of table) {
+    if (income <= prev) break;
+    tax += (Math.min(income, upto) - prev) * rate;
+    prev = upto;
+  }
+  return tax;
+}
+
+function fedTax(income, married) {
+  return married ? bracket(income / 2, FED_MARRIED) * 2 : bracket(income, FED_SINGLE);
+}
+function zhBasic(income, married) {
+  return bracket(income, married ? ZH_MARRIED : ZH_SINGLE);
+}
+
+// Wealth tax bands (per mille) — ZH basic, then ×0.95×(1+sf)
+const WEALTH_BANDS = [[77000,0],[308000,.5],[3158000,1],[Infinity,3]];
+const WEALTH_EXEMPT = { married: 159000, single: 77000 };
+
+function wealthBasic(netWealth, married) {
+  const taxable = Math.max(0, netWealth - WEALTH_EXEMPT[married ? "married" : "single"]);
+  let tax = 0, prev = 0;
+  for (const [upto, pm] of WEALTH_BANDS) {
+    if (taxable <= prev) break;
+    tax += (Math.min(taxable, upto) - prev) * (pm / 1000);
+    prev = upto;
+  }
+  return tax;
+}
+
+// ─── GEMEINDEN ───────────────────────────────────────────────────────────────
+const GEMEINDEN = [
+  ["Stadt Zürich", 1.19], ["Winterthur", 1.22], ["Uster", 1.08],
+  ["Dübendorf", 1.09], ["Dietikon", 1.17], ["Kloten", 1.17],
+  ["Regensdorf", 1.02], ["Horgen", 0.97], ["Thalwil", 0.87],
+  ["Küsnacht", 0.77], ["Zollikon", 0.83], ["Männedorf", 0.91],
+  ["Opfikon", 1.22], ["Schlieren", 1.18], ["Adliswil", 1.04],
+  ["Kilchberg", 0.72], ["Rüschlikon", 0.74], ["Herrliberg", 0.78],
+  ["Maur", 0.95], ["Custom...", null],
+];
+
+const fmt = n => "CHF " + Math.round(n).toLocaleString("de-CH");
+const pct = n => (n * 100).toFixed(3) + "%";
+
+export default function App() {
+  const [married, setMarried] = useState(true);
+  const [swissIncome, setSwissIncome] = useState(100000);
+  const [propValue, setPropValue] = useState(200000);
+  const [mortgage, setMortgage] = useState(0);
+  const [imputedRate, setImputedRate] = useState(3.5);
+  const [rentalMode, setRentalMode] = useState("imputed"); // "imputed" | "actual"
+  const [actualRental, setActualRental] = useState(0);
+  const [swissWealth, setSwissWealth] = useState(0);
+  const [gemIdx, setGemIdx] = useState(0);
+  const [customSF, setCustomSF] = useState(119);
+  const [tab, setTab] = useState("summary");
+
+  const sf = gemIdx === GEMEINDEN.length - 1 ? customSF / 100 : GEMEINDEN[gemIdx][1];
+  const imputed = rentalMode === "actual" ? actualRental : propValue * (imputedRate / 100);
+  const propNet = Math.max(0, propValue - mortgage);
+  const totalWealth = swissWealth + propNet;
+
+  // Effective rate method: compute rate on rateInc, apply to swissInc
+  function allTax(swissInc, rateInc) {
+    const fRate = rateInc > 0 ? fedTax(rateInc, married) / rateInc : 0;
+    const cRate = rateInc > 0 ? zhBasic(rateInc, married) * 0.95 / rateInc : 0;
+    const mRate = rateInc > 0 ? zhBasic(rateInc, married) * 0.95 * sf / rateInc : 0;
+    return {
+      fed: swissInc * fRate, fRate,
+      can: swissInc * cRate, cRate,
+      mun: swissInc * mRate, mRate,
+    };
+  }
+
+  const tW = allTax(swissIncome, swissIncome + imputed);
+  const tWo = allTax(swissIncome, swissIncome);
+
+  const dFed = tW.fed - tWo.fed;
+  const dCan = tW.can - tWo.can;
+  const dMun = tW.mun - tWo.mun;
+  const dInc = dFed + dCan + dMun;
+
+  const wTaxWo = wealthBasic(swissWealth, married) * 0.95 * (1 + sf);
+  const wTaxW  = wealthBasic(totalWealth,  married) * 0.95 * (1 + sf);
+  const dWealth = wTaxW - wTaxWo;
+  const dTotal = dInc + dWealth;
+
+  const exemption = WEALTH_EXEMPT[married ? "married" : "single"];
+
+  const Pill = ({ id, children }) => (
+    <button onClick={() => setTab(id)}
+      className={`px-3 py-1 rounded-full text-xs font-medium ${tab === id ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>
+      {children}
+    </button>
+  );
+
+  const Row = ({ label, val, indent, bold, highlight, gray, sub }) => (
+    <tr className={highlight ? "bg-amber-50" : gray ? "bg-gray-50" : ""}>
+      <td className={`py-1.5 pr-4 text-xs ${indent ? "pl-5" : "pl-1"} ${bold ? "font-semibold" : ""} ${gray ? "text-gray-400" : "text-gray-700"}`}>
+        {label}{sub && <span className="text-gray-400 font-normal"> {sub}</span>}
+      </td>
+      <td className={`py-1.5 text-right text-xs ${bold ? "font-semibold" : ""} ${highlight ? "text-amber-800 font-semibold" : gray ? "text-gray-400" : "text-gray-800"}`}>{val}</td>
+    </tr>
+  );
+
+  return (
+    <div className="max-w-lg mx-auto p-4 font-sans text-sm bg-white">
+      <div className="mb-4">
+        <h1 className="text-base font-bold text-gray-900">Zurich 2025 — Overseas Property Tax Impact</h1>
+        <p className="text-xs text-gray-500">Federal + Canton Zürich + Municipal. {married ? "Married" : "Single"}, no kids, no church tax.</p>
+      </div>
+
+      {/* INPUTS */}
+      <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-3">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Inputs</p>
+
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Filing status</label>
+          <div className="flex gap-2">
+            {[[true,"Married"],[false,"Single"]].map(([m, label]) => (
+              <button key={label} onClick={() => setMarried(m)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-medium border ${married === m ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Gemeinde (Steuerfuss)</label>
+          <select value={gemIdx} onChange={e => setGemIdx(Number(e.target.value))}
+            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+            {GEMEINDEN.map(([name, sf], i) => (
+              <option key={i} value={i}>{name}{sf ? ` — ${Math.round(sf * 100)}%` : ""}</option>
+            ))}
+          </select>
+          {gemIdx === GEMEINDEN.length - 1 && (
+            <div className="mt-2 flex items-center gap-2">
+              <input type="number" value={customSF} min={50} max={150} step={1}
+                onChange={e => setCustomSF(Number(e.target.value))}
+                className="w-24 border border-gray-300 rounded px-2 py-1 text-sm" />
+              <span className="text-xs text-gray-500">% Steuerfuss</span>
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-1">Active Steuerfuss: <strong>{Math.round(sf * 100)}%</strong></p>
+        </div>
+
+        {[
+          ["Swiss taxable income (after all deductions)", swissIncome, setSwissIncome, 1000],
+          ["Overseas property value", propValue, setPropValue, 1000],
+          ["Mortgage on overseas property", mortgage, setMortgage, 1000],
+          ["Other Swiss net wealth (bank, investments, 3a, cars, etc.)", swissWealth, setSwissWealth, 5000],
+        ].map(([label, val, set, step]) => (
+          <div key={label}>
+            <label className="block text-xs text-gray-600 mb-1">{label}</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1.5 text-gray-400 text-xs">CHF</span>
+              <input type="number" value={val} step={step}
+                onChange={e => set(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-1.5 text-sm" />
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Overseas property income type</label>
+          <div className="flex gap-2 mb-2">
+            {[["imputed","Imputed rental"],["actual","Actual rental income"]].map(([mode, label]) => (
+              <button key={mode} onClick={() => setRentalMode(mode)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${rentalMode === mode ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {rentalMode === "imputed" ? (
+            <div className="flex items-center gap-2">
+              <input type="number" value={imputedRate} step={0.1} min={0} max={10}
+                onChange={e => setImputedRate(Number(e.target.value))}
+                className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm" />
+              <span className="text-xs text-gray-500">% of property value = {fmt(propValue * (imputedRate / 100))}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <span className="absolute left-3 top-1.5 text-gray-400 text-xs">CHF</span>
+              <input type="number" value={actualRental} step={500}
+                onChange={e => setActualRental(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-1.5 text-sm"
+                placeholder="Annual rental income" />
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-1">Rate-determining income addition: <strong>{fmt(imputed)}</strong></p>
+        </div>
+      </div>
+
+      {/* TABS */}
+      <div className="flex gap-2 mb-3">
+        <Pill id="summary">Summary</Pill>
+        <Pill id="income">Income Tax</Pill>
+        <Pill id="wealth">Wealth Tax</Pill>
+      </div>
+
+      {tab === "summary" && (
+        <div className="space-y-3">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left text-xs font-semibold text-gray-500 px-3 py-2">Component</th>
+                  <th className="text-right text-xs font-semibold text-gray-500 px-3 py-2">Extra tax</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Federal income tax", dFed],
+                  ["Canton Zürich income tax", dCan],
+                  ["Municipal income tax", dMun],
+                  ["Wealth tax (canton + municipal)", dWealth],
+                ].map(([label, val], i) => (
+                  <tr key={label} className={i % 2 ? "bg-gray-50" : ""}>
+                    <td className="px-3 py-2 text-xs text-gray-700">{label}</td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-800">{fmt(val)}</td>
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-gray-300 bg-amber-50">
+                  <td className="px-3 py-3 text-sm font-bold text-amber-900">Total extra tax</td>
+                  <td className="px-3 py-3 text-right text-sm font-bold text-amber-900">{fmt(dTotal)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[["Income impact", dInc, "rate progression effect"], ["Wealth impact", dWealth, `from ${fmt(propNet)} property`]].map(([label, val, sub]) => (
+              <div key={label} className="bg-blue-50 rounded-xl p-3">
+                <p className="text-xs text-blue-600 font-medium">{label}</p>
+                <p className="text-lg font-bold text-blue-900">{fmt(val)}</p>
+                <p className="text-xs text-blue-500">{sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "income" && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full">
+            <tbody>
+              <Row label="Swiss taxable income" val={fmt(swissIncome)} bold />
+              <Row label={rentalMode === "imputed" ? "+ Overseas imputed rental income" : "+ Overseas actual rental income"} val={fmt(imputed)} indent sub={rentalMode === "imputed" ? `(${imputedRate}% × ${fmt(propValue)})` : "(rate-determining only, not taxed in CH)"} />
+              <Row label="= Rate-determining income" val={fmt(swissIncome + imputed)} bold />
+              {[
+                ["Federal Tax", tWo.fRate, tW.fRate, dFed],
+                ["Canton Zürich (×0.95)", tWo.cRate, tW.cRate, dCan],
+                [`Municipal (Steuerfuss ${Math.round(sf*100)}%)`, tWo.mRate, tW.mRate, dMun],
+              ].map(([title, rBefore, rAfter, impact]) => (
+                <>
+                  <tr key={title}><td colSpan={2} className="pt-3 pb-1 px-1 text-xs font-semibold text-blue-700 uppercase tracking-wide">{title}</td></tr>
+                  <Row label="Effective rate (Swiss only)" val={pct(rBefore)} indent gray />
+                  <Row label="Effective rate (with overseas)" val={pct(rAfter)} indent />
+                  <Row label="Tax impact" val={fmt(impact)} highlight />
+                </>
+              ))}
+              <tr className="border-t-2 border-gray-200">
+                <td className="px-1 py-2 text-xs font-bold text-amber-800">Total income tax impact</td>
+                <td className="px-1 py-2 text-right text-xs font-bold text-amber-800">{fmt(dInc)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "wealth" && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full">
+            <tbody>
+              <Row label="Other Swiss net wealth" val={fmt(swissWealth)} />
+              <Row label="Overseas property (net of mortgage)" val={fmt(propNet)} indent />
+              <Row label="Total net wealth for tax" val={fmt(totalWealth)} bold />
+              <Row label="Less: exemption" val={`− ${fmt(exemption)}`} indent gray />
+              <Row label="Taxable wealth (without property)" val={fmt(Math.max(0, swissWealth - exemption))} indent />
+              <Row label="Taxable wealth (with property)" val={fmt(Math.max(0, totalWealth - exemption))} indent />
+              <tr><td colSpan={2} className="pt-3 pb-1 px-1 text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                Wealth Tax (Canton ×0.95 + Municipal Steuerfuss {Math.round(sf*100)}%)
+              </td></tr>
+              <Row label="Wealth tax without property" val={fmt(wTaxWo)} indent />
+              <Row label="Wealth tax with property" val={fmt(wTaxW)} indent />
+              <Row label="Wealth tax impact" val={fmt(dWealth)} highlight />
+              <tr><td colSpan={2} className="px-1 py-2 text-xs text-gray-400">
+                Bands: 0‰ to CHF 77k · 0.5‰ to 308k · 1‰ to 3.158m · 3‰ above
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-400 mt-3">
+        Based on 2025 tariffs (DBG Art. 36 federal; ZH §35 StG ×0.95). Excludes church tax. Verify against official ZH Steuerrechner.
+      </p>
+    </div>
+  );
+}
