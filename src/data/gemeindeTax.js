@@ -1,30 +1,41 @@
-// Kanton Zürich — Gemeinde Steuerfuss 2025
-// Format: [name, steuerfuss as decimal (e.g. 1.19 = 119%)]
-// Update annually — source: zh.ch / Steueramt Kanton Zürich
-// null = custom input
+// Kanton Zürich — Gemeinde Steuerfuss
+// Source: https://www.web.statistik.zh.ch/ogd/data/steuerfuesse/kanton_zuerich_stf_aktuell.csv
+// STF_O_KIRCHE1 = Steuerfuss without church tax
 
-export const GEMEINDEN = [
-  ["Stadt Zürich",        1.19],
-  ["Winterthur",          1.22],
-  ["Uster",               1.08],
-  ["Dübendorf",           1.09],
-  ["Dietikon",            1.17],
-  ["Kloten",              1.17],
-  ["Regensdorf",          1.02],
-  ["Horgen",              0.97],
-  ["Thalwil",             0.87],
-  ["Küsnacht",            0.77],
-  ["Zollikon",            0.76],
-  ["Männedorf",           0.91],
-  ["Opfikon",             1.22],
-  ["Schlieren",           1.18],
-  ["Adliswil",            1.04],
-  ["Kilchberg",           0.72],
-  ["Rüschlikon",          0.74],
-  ["Herrliberg",          0.78],
-  ["Maur",                0.95],
-  ["Bonstetten",          0.91],
-  ["Wettswil am Albis",   0.91],
-  ["Affoltern am Albis",  1.24],
-  ["Custom...",           null],
-];
+import rawCsv from "./kanton_zuerich_stf_timeseries.csv?raw";
+
+function parseCsv(csv) {
+  const lines = csv.trim().split("\n").slice(1); // skip header
+  const result = {};
+
+  for (const line of lines) {
+    // parse quoted CSV fields
+    const cols = [];
+    let current = "", inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; }
+      else if (ch === "," && !inQuotes) { cols.push(current.trim()); current = ""; }
+      else { current += ch; }
+    }
+    cols.push(current.trim());
+
+    const year = parseInt(cols[0]);
+    const name = cols[2];
+    const sf   = parseFloat(cols[3]);
+
+    if (!year || !name || isNaN(sf)) continue;
+    if (!result[year]) result[year] = [];
+    result[year].push([name, sf / 100]);
+  }
+
+  // sort each year alphabetically
+  for (const year of Object.keys(result)) {
+    result[year].sort((a, b) => a[0].localeCompare(b[0], "de"));
+    result[year].push(["Custom...", null]);
+  }
+
+  return result;
+}
+
+export const STEUERFUSS = parseCsv(rawCsv);
+export const TAX_YEARS  = Object.keys(STEUERFUSS).map(Number).sort();

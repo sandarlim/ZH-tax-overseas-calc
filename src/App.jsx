@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FED_MARRIED, FED_SINGLE } from "./data/federalTax";
 import { ZH_MARRIED, ZH_SINGLE, WEALTH_BANDS, WEALTH_EXEMPT, CANTONAL_MULTIPLIER } from "./data/cantonalTax";
-import { GEMEINDEN } from "./data/gemeindeTax";
+import { STEUERFUSS, TAX_YEARS } from "./data/gemeindeTax";
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function bracket(income, table) {
@@ -36,6 +36,7 @@ const fmt = n => "CHF " + Math.round(n).toLocaleString("de-CH");
 const pct = n => (n * 100).toFixed(3) + "%";
 
 export default function App() {
+  const [taxYear, setTaxYear] = useState(2025);
   const [married, setMarried] = useState(true);
   const [swissIncome, setSwissIncome] = useState(100000);
   const [propValue, setPropValue] = useState(200000);
@@ -48,10 +49,11 @@ export default function App() {
   const [customSF, setCustomSF] = useState(119);
   const [tab, setTab] = useState("summary");
 
-  const sf = gemIdx === GEMEINDEN.length - 1 ? customSF / 100 : GEMEINDEN[gemIdx][1];
+  const GEMEINDEN = [...(STEUERFUSS[taxYear] || []), ["Custom...", null]];
+  const sf = gemIdx >= GEMEINDEN.length - 1 ? customSF / 100 : GEMEINDEN[gemIdx][1];
   const imputed = rentalMode === "actual" ? actualRental : propValue * (imputedRate / 100);
   const propNet = Math.max(0, propValue - mortgage);
-  const totalWealth = swissWealth + propNet;
+  const totalWealth = swissWealth + propNet;  
 
   function allTax(swissInc, rateInc) {
     const fRate = rateInc > 0 ? fedTax(rateInc, married) / rateInc : 0;
@@ -101,10 +103,21 @@ export default function App() {
         <h1 className="text-base font-bold text-gray-900">Zurich 2025 — Overseas Property Tax Impact</h1>
         <p className="text-xs text-gray-500">Federal + Canton Zürich + Municipal. {married ? "Married" : "Single"}, no kids, no church tax.</p>
       </div>
-
-      {/* INPUTS */}
+    {/* INPUTS */}
       <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-3">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Inputs</p>
+
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Tax year</label>
+          <div className="flex gap-2">
+            {TAX_YEARS.map(y => (
+              <button key={y} onClick={() => { setTaxYear(y); setGemIdx(0); }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-medium border ${taxYear === y ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300"}`}>
+                {y}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div>
           <label className="block text-xs text-gray-600 mb-1">Filing status</label>
@@ -288,7 +301,7 @@ export default function App() {
 
       <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Disclaimer</p>
-        <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier). Excludes church tax.</p>
+        <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier). Excludes church tax. For 2026, only Gemeinde (Steuerfuss) is up-to-date.</p>
         <p className="text-xs text-gray-500">This calculator is an <strong>approximation for illustrative purposes only</strong>. Figures may not be fully up to date. For accurate calculations, consult a qualified Swiss tax advisor.</p>
         <p className="text-xs text-gray-500">⚠️ <strong>Note on Eigenmietwert:</strong> The imputed rental value system will be abolished in Switzerland in the coming years. This will affect the income progression calculation.</p>
         <p className="text-xs text-gray-500">Found an error? <a href="https://github.com/sandarlim/ZH-tax-overseas-calc/issues/new" className="text-blue-500 underline" target="_blank">Open an issue on GitHub</a> or fork the project to update.</p>
