@@ -2,7 +2,7 @@
 // Basic tax is multiplied by CANTONAL_MULTIPLIER (currently 0.95 since 2024 referendum)
 // Municipal tax = basic × CANTONAL_MULTIPLIER × Steuerfuss
 
-export const CANTONAL_MULTIPLIER = 0.95; // updated from 0.98 in 2024
+export const CANTONAL_MULTIPLIER = 0.95; // from 2026. previously, this number was 0.98
 
 // Income tax brackets — Verheiratetentarif (married)
 export const ZH_MARRIED = [

@@ -49,7 +49,7 @@ export default function App() {
   const [customSF, setCustomSF] = useState(119);
   const [tab, setTab] = useState("summary");
 
-  const GEMEINDEN = [...(STEUERFUSS[taxYear] || []), ["Custom...", null]];
+  const GEMEINDEN = [...(STEUERFUSS[taxYear] || [])];
   const sf = gemIdx >= GEMEINDEN.length - 1 ? customSF / 100 : GEMEINDEN[gemIdx][1];
   const imputed = rentalMode === "actual" ? actualRental : propValue * (imputedRate / 100);
   const propNet = Math.max(0, propValue - mortgage);
@@ -301,7 +301,7 @@ export default function App() {
 
       <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Disclaimer</p>
-        <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier). Excludes church tax. For 2026, only Gemeinde (Steuerfuss) is up-to-date.</p>
+        <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier). Excludes church tax. </p>
         <p className="text-xs text-gray-500">This calculator is an <strong>approximation for illustrative purposes only</strong>. Figures may not be fully up to date. For accurate calculations, consult a qualified Swiss tax advisor.</p>
         <p className="text-xs text-gray-500">⚠️ <strong>Note on Eigenmietwert:</strong> The imputed rental value system will be abolished in Switzerland in the coming years. This will affect the income progression calculation.</p>
         <p className="text-xs text-gray-500">Found an error? <a href="https://github.com/sandarlim/ZH-tax-overseas-calc/issues/new" className="text-blue-500 underline" target="_blank">Open an issue on GitHub</a> or fork the project to update.</p>
