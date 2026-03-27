@@ -5,6 +5,7 @@
 
 export const TAX_YEAR = 2025;
 
+// Numbers in force since 2026 https://www.fedlex.admin.ch/eli/cc/1991/1184_1184_1184/de#art_36
 export const FED_MARRIED = [
   [29700,   0      ],
   [53400,   0.010  ],
@@ -17,9 +18,9 @@ export const FED_MARRIED = [
   [138400,  0.080  ],
   [144300,  0.090  ],
   [148300,  0.100  ],
-  [150400,  0.105  ],
-  [152400,  0.110  ],
-  [Infinity,0.115  ],
+  [150400,  0.110  ],
+  [152400,  0.120  ],
+  [Infinity,0.130  ],
 ];
 
 export const FED_SINGLE = [

@@ -2,8 +2,9 @@
 // Basic tax is multiplied by CANTONAL_MULTIPLIER (currently 0.95 since 2024 referendum)
 // Municipal tax = basic × CANTONAL_MULTIPLIER × Steuerfuss
 
-export const CANTONAL_MULTIPLIER = 0.95; // from 2026. previously, this number was 0.98
+export const CANTONAL_MULTIPLIER = 0.95; // from 2026. Previous years, this number was 0.98
 
+// Numbers from 2025 https://swisstaxcalculator.estv.admin.ch/#/taxdata/tax-rates
 // Income tax brackets — Verheiratetentarif (married)
 export const ZH_MARRIED = [
   [13900,    0    ],
