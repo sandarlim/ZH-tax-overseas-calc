@@ -1,6 +1,6 @@
 // Federal Direct Tax (DBG Art. 36)
 // Sources:
-//   2025: ESTV Rundschreiben 2-210-D-2024-d, 22 August 2024 (official ESTV PDF)
+//   2025: ESTV Rundschreiben 2-210-D-2024-d, 22 August 2024 (official ESTV PDF) https://www.estv2.admin.ch/dvs/rundschreiben/dbst-rs-2-210-d-2024-de.pdf
 //   2026: V of EFD of 10 Sept 2025 on cold progression (AS 2025 579/621), fedlex Art. 36
 //
 // Rates stored as decimals (e.g. 0.01 = 1%)
