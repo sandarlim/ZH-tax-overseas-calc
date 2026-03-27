@@ -292,7 +292,6 @@ export default function App() {
               <Row label="Wealth tax with property" val={fmt(wTaxW)} indent />
               <Row label="Wealth tax impact" val={fmt(dWealth)} highlight />
               <tr><td colSpan={2} className="px-1 py-2 text-xs text-gray-400">
-                Bands: 0‰ to CHF 77k · 0.5‰ to 308k · 1‰ to 3.158m · 3‰ above
               </td></tr>
             </tbody>
           </table>
@@ -301,7 +300,7 @@ export default function App() {
 
       <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Disclaimer</p>
-        <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier). Excludes church tax. </p>
+        <p className="text-xs text-gray-500">Based on <strong>2025 federal and Kanton Zürich tax rates</strong> (DBG Art. 36; StG ZH §35 ×0.95 cantonal multiplier starting 2026). Excludes church tax. </p>
         <p className="text-xs text-gray-500">This calculator is an <strong>approximation for illustrative purposes only</strong>. Figures may not be fully up to date. For accurate calculations, consult a qualified Swiss tax advisor.</p>
         <p className="text-xs text-gray-500">⚠️ <strong>Note on Eigenmietwert:</strong> The imputed rental value system will be abolished in Switzerland in the coming years. This will affect the income progression calculation.</p>
         <p className="text-xs text-gray-500">Found an error? <a href="https://github.com/sandarlim/ZH-tax-overseas-calc/issues/new" className="text-blue-500 underline" target="_blank">Open an issue on GitHub</a> or fork the project to update.</p>
