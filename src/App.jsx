@@ -49,7 +49,7 @@ const fmt = n => "CHF " + Math.round(n).toLocaleString("de-CH");
 const pct = n => (n * 100).toFixed(3) + "%";
 
 export default function App() {
-  const [taxYear, setTaxYear] = useState(2025);
+  const [taxYear, setTaxYear] = useState(2026);
   const [married, setMarried] = useState(true);
   const [swissIncome, setSwissIncome] = useState(100000);
   const [propValue, setPropValue] = useState(200000);
@@ -115,7 +115,7 @@ export default function App() {
   return (
     <div className="max-w-lg mx-auto p-4 font-sans text-sm bg-white">
       <div className="mb-4">
-        <h1 className="text-base font-bold text-gray-900">Zurich {taxYear} — Overseas Property Tax Impact</h1>
+        <h1 className="text-base font-bold text-gray-900">Kanton Zurich — Overseas Property Tax Impact Calculator</h1>
         <p className="text-xs text-gray-500">Federal + Canton Zürich + Municipal. {married ? "Married" : "Single"}, no kids, no church tax.</p>
       </div>
 
